@@ -1,11 +1,19 @@
 #include <locale.h>
 #include <ncurses.h>
 #include <unistd.h>
-#include <iostream>
 #include <fstream>
+#include <iostream>
 #include <string>
 #include <vector>
 #include "utf8.h"
+
+template <typename T, typename U>
+std::vector<T> filter(const std::vector<T>& vec, U fn) {
+  std::vector<std::string> out;
+  std::copy_if(vec.begin(), vec.end(), std::back_inserter(out),
+               [fn](const T& val) { return fn(val); });
+  return out;
+}
 
 size_t columns(const std::string& line) {
   size_t cols = 0;
@@ -52,9 +60,12 @@ std::vector<std::string> fold(const std::string& line, size_t cols) {
 
 std::vector<std::string> fold_lines(const std::vector<std::string>& lines,
                                     size_t cols, bool linespace) {
+  auto filtered =
+      filter(lines, [&](auto& line) { return !linespace || !line.empty(); });
+
   std::vector<std::string> out;
   auto init = true;
-  for (auto line : lines) {
+  for (auto line : filtered) {
     if (init) {
       init = false;
     } else if (linespace) {
@@ -153,7 +164,7 @@ int main(int argc, char* const* argv) {
       if (ifs) {
         lines = read_lines(ifs);
       } else {
-        std::cerr << "failed to open "<< path << " file..." << std::endl;
+        std::cerr << "failed to open " << path << " file..." << std::endl;
         return 0;
       }
     } else {
@@ -269,6 +280,7 @@ int main(int argc, char* const* argv) {
     if (layout) {
       display_lines = fold_lines(lines, cols, linespace);
       display_cols = std::min(max_cols, std::min<size_t>(cols, COLS));
+      current_line = 0;
     }
 
     clear();
