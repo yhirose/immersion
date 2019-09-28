@@ -1,12 +1,14 @@
 immersion
 =========
 
-Distraction free pager on Terminal
+Distraction free pager on Terminal.
 
 ```
 cal | immersion
 cal 2020 | immersion -w 0 -h 0
+figlet Immersion | immersion -w 0
 immersion -w 80 -w 40 main.cpp
+pbpaste | immersion
 ```
 
 Usage
