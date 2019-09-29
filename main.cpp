@@ -102,9 +102,9 @@ size_t max_colums(const vector<string>& lines) {
 
 void draw(const vector<string>& lines, size_t cols, size_t current_line,
           size_t margin) {
-  auto display_line_count = LINES_ - margin * 2;
+  auto view_lines = LINES_ - margin * 2;
 
-  if (lines.size() < display_line_count) {
+  if (lines.size() < view_lines) {
     int y = LINES_ / 2 - lines.size() / 2;
     size_t i = 0;
     for (auto& line : lines) {
@@ -114,8 +114,7 @@ void draw(const vector<string>& lines, size_t cols, size_t current_line,
     }
   } else {
     auto y = margin;
-    auto count = 0;
-    for (size_t i = 0; i < display_line_count; i++) {
+    for (size_t i = 0; i < view_lines; i++) {
       auto& line = lines[current_line + i];
       int x = COLS_ / 2 - cols / 2;
       mvprintw(y + i, x, line.c_str());
@@ -124,7 +123,7 @@ void draw(const vector<string>& lines, size_t cols, size_t current_line,
 }
 
 size_t calc_margin(size_t height, size_t min_margin, size_t line_count) {
-  return max((LINES_ - min(min(LINES_, height), line_count)) / 2, min_margin);
+  return max((LINES_ - min(height, line_count)) / 2, min_margin);
 }
 
 void parse_command_line(int argc, char* const* argv, size_t& cols,
@@ -211,6 +210,7 @@ int main(int argc, char* const* argv) {
   auto display_lines = fold_lines(lines, cols, linespace);
   auto display_cols = min(max_cols, min(cols, COLS_));
   auto margin = calc_margin(height, min_margin, display_lines.size());
+  height = LINES_ - margin * 2; // adjust based on actual margin
 
   int current_line = 0;
   draw(display_lines, display_cols, current_line, margin);
@@ -222,8 +222,8 @@ int main(int argc, char* const* argv) {
     auto page_lines = display_lines.size();
     auto bottom_line = 0;
     if (display_lines.size() > height) {
-      page_lines = (min(display_lines.size(), LINES_) - margin * 2);
-      bottom_line = display_lines.size() - 1 - page_lines;
+      page_lines = min(display_lines.size(), height);
+      bottom_line = display_lines.size() - page_lines;
     }
 
     auto scroll_core = [&](int rows, bool forward) {
@@ -290,6 +290,7 @@ int main(int argc, char* const* argv) {
 
       case 'f':
       case '=':
+      case ' ':
         scroll_forward(page_lines);
         break;
 
@@ -318,6 +319,7 @@ int main(int argc, char* const* argv) {
       display_lines = fold_lines(lines, cols, linespace);
       display_cols = min(max_cols, min(cols, COLS_));
       margin = calc_margin(height, min_margin, display_lines.size());
+      height = LINES_ - margin * 2; // adjust based on actual margin
       current_line = 0;
     }
 

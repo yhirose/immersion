@@ -1,4 +1,4 @@
-immersion
+Immersion
 =========
 
 Distraction free pager on Terminal.
