@@ -14,11 +14,12 @@ Usage
 -----
 
 ```
-Usage: immersion [-h rows] [-m rows] [-s] [-w cols] [path]
+Usage: immersion [-h rows] [-m rows] [-s] [-r] [-w cols] [path]
 
     q                   quit
 
     s                   toggle line space
+    r                   toggle word wrap
     [                   larger
     [                   smaller
 

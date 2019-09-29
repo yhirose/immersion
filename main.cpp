@@ -31,7 +31,13 @@ size_t columns(const string& line) {
   return cols;
 }
 
-vector<string> fold(const string& line, size_t cols) {
+bool is_non_start_char(const string& ch) {
+  return ch == u8"." || ch == u8"," || ch == u8";" || ch == u8"?" ||
+         ch == u8"!" || ch == u8"。" || ch == u8"，" || ch == u8"？" ||
+         ch == u8"！";
+}
+
+vector<string> fold(const string& line, size_t cols, bool word_warp) {
   vector<string> lines;
 
   if (line.empty()) {
@@ -48,12 +54,54 @@ vector<string> fold(const string& line, size_t cols) {
     size_t col_len = 0;
     auto char_len = utf8CharLen(line.data(), line.size(), pos, &col_len);
     if (col + col_len > cols) {
-      lines.push_back(line.substr(start, pos - start));
-      start = pos;
-      col = 0;
+      auto ch = line.substr(pos, char_len);
+      if (is_non_start_char(ch)) {
+        pos += char_len;
+        lines.push_back(line.substr(start, pos - start));
+        while (pos < line.size()) {
+          if (line[pos] != ' ') {
+            break;
+          }
+          pos++;
+        }
+        start = pos;
+        col = 0;
+      } else {
+        if (ch == u8" ") {
+          lines.push_back(line.substr(start, pos - start));
+          pos += char_len;
+          start = pos;
+          col = 0;
+        } else if (word_warp) {
+          auto pos2 = pos - 1;
+          while (start <= pos2) {
+            if (line[pos2] == ' ') {
+              break;
+            }
+            pos2--;
+          }
+          if (pos2 < start) {
+            lines.push_back(line.substr(start, pos - start));
+            start = pos;
+            col = col_len;
+            pos += char_len;
+          } else {
+            lines.push_back(line.substr(start, pos2 - start));
+            start = pos2 + 1;
+            col = 0;
+            pos = pos2 + 1;
+          }
+        } else {
+          lines.push_back(line.substr(start, pos - start));
+          start = pos;
+          col = col_len;
+          pos += char_len;
+        }
+      }
+    } else {
+      col += col_len;
+      pos += char_len;
     }
-    pos += char_len;
-    col += col_len;
   }
 
   if (start < pos) {
@@ -64,7 +112,7 @@ vector<string> fold(const string& line, size_t cols) {
 }
 
 vector<string> fold_lines(const vector<string>& lines, size_t cols,
-                          bool linespace) {
+                          bool linespace, bool word_warp) {
   auto filtered =
       filter(lines, [&](auto& line) { return !linespace || !line.empty(); });
 
@@ -76,7 +124,7 @@ vector<string> fold_lines(const vector<string>& lines, size_t cols,
     } else if (linespace) {
       out.push_back(string());
     }
-    for (auto l : fold(line, cols)) {
+    for (auto l : fold(line, cols, word_warp)) {
       out.push_back(l);
     }
   }
@@ -127,10 +175,11 @@ size_t calc_margin(size_t height, size_t min_margin, size_t line_count) {
 }
 
 void parse_command_line(int argc, char* const* argv, size_t& cols,
-                        size_t& height, size_t& min_margin, bool& linespace) {
+                        size_t& height, size_t& min_margin, bool& linespace,
+                        bool& word_warp) {
   int opt;
   opterr = 0;
-  while ((opt = getopt(argc, argv, "h:m:sw:")) != -1) {
+  while ((opt = getopt(argc, argv, "h:m:srw:")) != -1) {
     switch (opt) {
       case 'h':
         height = stoi(optarg);
@@ -140,6 +189,9 @@ void parse_command_line(int argc, char* const* argv, size_t& cols,
         break;
       case 's':
         linespace = true;
+        break;
+      case 'r':
+        word_warp = true;
         break;
       case 'w':
         cols = stoi(optarg);
@@ -153,8 +205,9 @@ int main(int argc, char* const* argv) {
   size_t opt_height = 0;
   size_t opt_min_margin = 1;
   bool opt_linespace = false;
+  bool opt_word_wrap = false;
   parse_command_line(argc, argv, opt_cols, opt_height, opt_min_margin,
-                     opt_linespace);
+                     opt_linespace, opt_word_wrap);
   argc -= optind;
   argv += optind;
 
@@ -174,11 +227,12 @@ int main(int argc, char* const* argv) {
       }
     } else {
       lines = {
-          "Usage: immersion [-h rows] [-m rows] [-s] [-w cols] [path]",
+          "Usage: immersion [-h rows] [-m rows] [-s] [-r] [-w cols] [path]",
           "",
           "    q                   quit",
           "",
           "    s                   toggle line space",
+          "    r                   toggle word wrap",
           "    [                   larger",
           "    ]                   smaller",
           "",
@@ -203,14 +257,15 @@ int main(int argc, char* const* argv) {
 
   auto min_margin = opt_min_margin;
   auto linespace = opt_linespace;
+  auto word_warp = opt_word_wrap;
   auto max_cols = max_colums(lines);
   auto cols = opt_cols > 0 ? opt_cols : min(max_cols, COLS_ - min_margin * 2);
 
   auto height = opt_height > 0 ? opt_height : LINES_ - min_margin * 2;
-  auto display_lines = fold_lines(lines, cols, linespace);
+  auto display_lines = fold_lines(lines, cols, linespace, word_warp);
   auto display_cols = min(max_cols, min(cols, COLS_));
   auto margin = calc_margin(height, min_margin, display_lines.size());
-  height = LINES_ - margin * 2; // adjust based on actual margin
+  height = LINES_ - margin * 2;  // adjust based on actual margin
 
   int current_line = 0;
   draw(display_lines, display_cols, current_line, margin);
@@ -316,10 +371,10 @@ int main(int argc, char* const* argv) {
 
     if (layout) {
       height = opt_height > 0 ? opt_height : LINES_ - min_margin * 2;
-      display_lines = fold_lines(lines, cols, linespace);
+      display_lines = fold_lines(lines, cols, linespace, word_warp);
       display_cols = min(max_cols, min(cols, COLS_));
       margin = calc_margin(height, min_margin, display_lines.size());
-      height = LINES_ - margin * 2; // adjust based on actual margin
+      height = LINES_ - margin * 2;  // adjust based on actual margin
       current_line = 0;
     }
 
