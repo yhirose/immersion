@@ -4,11 +4,10 @@ immersion
 Distraction free pager on Terminal.
 
 ```
-cal | immersion
-cal 2020 | immersion -w 0 -h 0
-figlet Immersion | immersion -w 0
-immersion -w 80 -w 40 main.cpp
+cal 2020 | immersion
+figlet Hello World! | immersion
 pbpaste | immersion
+immersion -w 80 -w 40 main.cpp
 ```
 
 Usage
@@ -17,18 +16,20 @@ Usage
 ```
 Usage: immersion [-h rows] [-m rows] [-s] [-w cols] [path]
 
-    q             quit
+    q                   quit
 
-    s             toggle line space"
-    =             larger
-    -             smaller
+    s                   toggle line space
+    [                   larger
+    [                   smaller
 
-    f / [space]   page down
-    b             page up
-    u             half page up
-    d             half page down
-    g             go to top
-    G             go to bottom
+    j                   line down
+    k                   line up
+    f or = or [space]   page down
+    b or -              page up
+    d or J              half page down
+    u or K              half page up
+    g                   go to top
+    G                   go to bottom
 ```
 
 Build
