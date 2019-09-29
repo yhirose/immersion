@@ -14,15 +14,22 @@ Usage
 -----
 
 ```
-Usage: immersion [-h rows] [-m rows] [-s] [-r] [-w cols] [path]
+usage: immersion [-ls] [-h rows] [-w cols] [-m rows] [file]
 
+  options:
+    -l                  line space
+    -s                  word wrap
+    -h rows             window height
+    -w cols             window width
+    -m cols             minimun margin
+    file                file path
+
+  commands:
     q                   quit
-
     s                   toggle line space
     r                   toggle word wrap
-    [                   larger
-    [                   smaller
-
+    i                   widen window (zoom in)
+    o                   narrow window (zoom out)
     j                   line down
     k                   line up
     f or = or [space]   page down

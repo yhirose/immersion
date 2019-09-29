@@ -179,22 +179,22 @@ void parse_command_line(int argc, char* const* argv, size_t& cols,
                         bool& word_warp) {
   int opt;
   opterr = 0;
-  while ((opt = getopt(argc, argv, "h:m:srw:")) != -1) {
+  while ((opt = getopt(argc, argv, "h:w:m:ls")) != -1) {
     switch (opt) {
       case 'h':
         height = stoi(optarg);
         break;
+      case 'w':
+        cols = stoi(optarg);
+        break;
       case 'm':
         min_margin = stoi(optarg);
         break;
-      case 's':
+      case 'l':
         linespace = true;
         break;
-      case 'r':
+      case 's':
         word_warp = true;
-        break;
-      case 'w':
-        cols = stoi(optarg);
         break;
     }
   }
@@ -227,15 +227,22 @@ int main(int argc, char* const* argv) {
       }
     } else {
       lines = {
-          "Usage: immersion [-h rows] [-m rows] [-s] [-r] [-w cols] [path]",
+          "usage: immersion [-ls] [-h rows] [-w cols] [-m rows] [file]",
           "",
+          "  options:",
+          "    -l                  line space",
+          "    -s                  word wrap",
+          "    -h rows             window height",
+          "    -w cols             window width",
+          "    -m cols             minimun margin",
+          "    file                file path",
+          "",
+          "  commands:",
           "    q                   quit",
-          "",
-          "    s                   toggle line space",
+          "    l                   toggle line space",
           "    r                   toggle word wrap",
-          "    [                   larger",
-          "    ]                   smaller",
-          "",
+          "    i                   widen window (zoom in)",
+          "    o                   narrow window (zoom out)",
           "    j                   line down",
           "    k                   line up",
           "    f or = or [space]   page down",
@@ -304,19 +311,19 @@ int main(int argc, char* const* argv) {
     auto layout = false;
 
     switch (key) {
-      case 's':
+      case 'l':
         linespace = !linespace;
         layout = true;
         break;
 
-      case '[':
+      case 'i':
         if (cols < COLS_ - min_margin * 2) {
           cols++;
           layout = true;
         }
         break;
 
-      case ']':
+      case 'o':
         if (cols > min_margin * 2) {
           cols--;
           layout = true;
