@@ -171,7 +171,18 @@ void draw(const vector<string>& lines, size_t cols, size_t current_line,
 }
 
 size_t calc_margin(size_t height, size_t min_margin, size_t line_count) {
+  height = height > 0 ? height : LINES_ - min_margin * 2;
   return max((LINES_ - min(height, line_count)) / 2, min_margin);
+}
+
+size_t calc_page_ines(const vector<string>& display_lines, size_t height, size_t& bottom_line) {
+  auto page_lines = display_lines.size();
+  bottom_line = 0;
+  if (display_lines.size() > height) {
+    page_lines = min(display_lines.size(), height);
+    bottom_line = display_lines.size() - page_lines;
+  }
+  return page_lines;
 }
 
 void parse_command_line(int argc, char* const* argv, size_t& cols,
@@ -241,8 +252,10 @@ int main(int argc, char* const* argv) {
           "    q                   quit",
           "    l                   toggle line space",
           "    r                   toggle word wrap",
-          "    i                   widen window (zoom in)",
-          "    o                   narrow window (zoom out)",
+          "    i                   widen window",
+          "    o                   narrow window",
+          "    I                   make window taller",
+          "    O                   make window shorter",
           "    j                   line down",
           "    k                   line up",
           "    f or = or [space]   page down",
@@ -262,31 +275,25 @@ int main(int argc, char* const* argv) {
   noecho();
   curs_set(0);
 
-  auto min_margin = opt_min_margin;
   auto linespace = opt_linespace;
-  auto word_warp = opt_word_wrap;
   auto max_cols = max_colums(lines);
-  auto cols = opt_cols > 0 ? opt_cols : min(max_cols, COLS_ - min_margin * 2);
+  auto cols =
+      opt_cols > 0 ? opt_cols : min(max_cols, COLS_ - opt_min_margin * 2);
+  auto height = opt_height;
 
-  auto height = opt_height > 0 ? opt_height : LINES_ - min_margin * 2;
-  auto display_lines = fold_lines(lines, cols, linespace, word_warp);
+  auto display_lines = fold_lines(lines, cols, linespace, opt_word_wrap);
   auto display_cols = min(max_cols, min(cols, COLS_));
-  auto margin = calc_margin(height, min_margin, display_lines.size());
+  auto margin = calc_margin(height, opt_min_margin, display_lines.size());
   height = LINES_ - margin * 2;  // adjust based on actual margin
-
+  size_t bottom_line = 0;
+  auto page_lines = calc_page_ines(display_lines, height, bottom_line);
   int current_line = 0;
+
   draw(display_lines, display_cols, current_line, margin);
 
   while (true) {
     int key = getch();
     if (key == 'q') break;
-
-    auto page_lines = display_lines.size();
-    auto bottom_line = 0;
-    if (display_lines.size() > height) {
-      page_lines = min(display_lines.size(), height);
-      bottom_line = display_lines.size() - page_lines;
-    }
 
     auto scroll_core = [&](int rows, bool forward) {
       while (rows > 0) {
@@ -317,15 +324,29 @@ int main(int argc, char* const* argv) {
         break;
 
       case 'i':
-        if (cols < COLS_ - min_margin * 2) {
+        if (cols < COLS_ - opt_min_margin * 2) {
           cols++;
           layout = true;
         }
         break;
 
       case 'o':
-        if (cols > min_margin * 2) {
-          cols--;
+        if (cols > opt_min_margin * 2) {
+          cols -= 2;
+          layout = true;
+        }
+        break;
+
+      case 'I':
+        if (height < LINES_ - opt_min_margin * 2) {
+          height += 2;
+          layout = true;
+        }
+        break;
+
+      case 'O':
+        if (height > opt_min_margin * 2) {
+          height -= 2;
           layout = true;
         }
         break;
@@ -377,12 +398,14 @@ int main(int argc, char* const* argv) {
     }
 
     if (layout) {
-      height = opt_height > 0 ? opt_height : LINES_ - min_margin * 2;
-      display_lines = fold_lines(lines, cols, linespace, word_warp);
+      display_lines = fold_lines(lines, cols, linespace, opt_word_wrap);
       display_cols = min(max_cols, min(cols, COLS_));
-      margin = calc_margin(height, min_margin, display_lines.size());
+      margin = calc_margin(height, opt_min_margin, display_lines.size());
       height = LINES_ - margin * 2;  // adjust based on actual margin
-      current_line = 0;
+      page_lines = calc_page_ines(display_lines, height, bottom_line);
+      if (current_line > bottom_line) {
+        current_line = bottom_line;
+      }
     }
 
     clear();

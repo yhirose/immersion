@@ -28,8 +28,10 @@ usage: immersion [-ls] [-h rows] [-w cols] [-m rows] [file]
     q                   quit
     s                   toggle line space
     r                   toggle word wrap
-    i                   widen window (zoom in)
-    o                   narrow window (zoom out)
+    i                   widen window
+    o                   narrow window
+    I                   make window taller
+    O                   make window shorter
     j                   line down
     k                   line up
     f or = or [space]   page down
