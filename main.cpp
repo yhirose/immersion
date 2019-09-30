@@ -14,10 +14,19 @@ using namespace std;
 
 template <typename T, typename U>
 vector<T> filter(const vector<T>& vec, U fn) {
-  vector<string> out;
+  vector<T> out;
   copy_if(vec.begin(), vec.end(), back_inserter(out),
           [fn](const T& val) { return fn(val); });
   return out;
+}
+
+auto read_lines(istream& in) {
+  vector<string> lines;
+  string line;
+  while (getline(in, line)) {
+    lines.push_back(line);
+  }
+  return lines;
 }
 
 size_t columns(const string& line) {
@@ -37,7 +46,7 @@ bool is_non_start_char(const string& ch) {
          ch == u8"！";
 }
 
-vector<string> fold(const string& line, size_t cols, bool word_warp) {
+auto fold(const string& line, size_t cols, bool word_warp) {
   vector<string> lines;
 
   if (line.empty()) {
@@ -111,33 +120,35 @@ vector<string> fold(const string& line, size_t cols, bool word_warp) {
   return lines;
 }
 
-vector<string> fold_lines(const vector<string>& lines, size_t cols,
-                          bool linespace, bool word_warp) {
-  auto filtered =
-      filter(lines, [&](auto& line) { return !linespace || !line.empty(); });
+auto to_attributed_line(const string& line) {
+  vector<pair<string, chtype>> result;
 
-  vector<string> out;
-  auto init = true;
-  for (auto line : filtered) {
-    if (init) {
-      init = false;
-    } else if (linespace) {
-      out.push_back(string());
-    }
-    for (auto l : fold(line, cols, word_warp)) {
-      out.push_back(l);
+  size_t pos = 0;
+  while (pos < line.size()) {
+    size_t col_len = 0;
+    auto char_len = utf8CharLen(line.data(), line.size(), pos, &col_len);
+    auto ch = line.substr(pos, char_len);
+
+    if (pos < line.size() && line[pos + char_len] == 0x08) { // backspace
+      pos += char_len + 1;
+
+      size_t col_len2 = 0;
+      auto char_len2 = utf8CharLen(line.data(), line.size(), pos, &col_len2);
+      auto ch2 = line.substr(pos, char_len2);
+
+      pos += char_len2;
+      if (ch == "_") {
+        result.emplace_back(ch2, A_UNDERLINE);
+      } if (ch == ch2) {
+        result.emplace_back(ch2, A_REVERSE);
+      }
+    } else {
+      pos += char_len;
+      result.emplace_back(ch, A_NORMAL);
     }
   }
-  return out;
-}
 
-vector<string> read_lines(istream& in) {
-  vector<string> lines;
-  string line;
-  while (getline(in, line)) {
-    lines.push_back(line);
-  }
-  return lines;
+  return result;
 }
 
 size_t max_colums(const vector<string>& lines) {
@@ -148,16 +159,44 @@ size_t max_colums(const vector<string>& lines) {
   return cols;
 }
 
-void draw(const vector<string>& lines, size_t cols, size_t current_line,
-          size_t margin) {
-  auto view_lines = LINES_ - margin * 2;
+auto fold_lines(const vector<string>& lines, size_t cols, bool linespace,
+                bool word_warp) {
+  auto filtered =
+      filter(lines, [&](auto& line) { return !linespace || !line.empty(); });
 
+  vector<vector<pair<string, chtype>>> out;
+  auto init = true;
+  for (auto line : filtered) {
+    if (init) {
+      init = false;
+    } else if (linespace) {
+      out.push_back(to_attributed_line(string()));
+    }
+    for (auto l : fold(line, cols, word_warp)) {
+      out.push_back(to_attributed_line(l));
+    }
+  }
+  return out;
+}
+
+void draw(const vector<vector<pair<string, chtype>>>& lines, size_t cols,
+          size_t current_line, size_t margin) {
+  auto view_lines = LINES_ - margin * 2;
   if (lines.size() < view_lines) {
     int y = LINES_ / 2 - lines.size() / 2;
     size_t i = 0;
     for (auto& line : lines) {
       int x = COLS_ / 2 - cols / 2;
-      mvprintw(y + i, x, line.c_str());
+      move(y + i, x);
+      for (auto& [ch, att] : line) {
+        if (att & A_UNDERLINE) {
+          attron(A_UNDERLINE);
+        }
+        printw(ch.c_str());
+        if (att & A_UNDERLINE) {
+          attroff(A_UNDERLINE);
+        }
+      }
       i++;
     }
   } else {
@@ -165,7 +204,16 @@ void draw(const vector<string>& lines, size_t cols, size_t current_line,
     for (size_t i = 0; i < view_lines; i++) {
       auto& line = lines[current_line + i];
       int x = COLS_ / 2 - cols / 2;
-      mvprintw(y + i, x, line.c_str());
+      move(y + i, x);
+      for (auto& [ch, att] : line) {
+        if (att & A_UNDERLINE) {
+          attron(A_UNDERLINE);
+        }
+        printw(ch.c_str());
+        if (att & A_UNDERLINE) {
+          attroff(A_UNDERLINE);
+        }
+      }
     }
   }
 }
@@ -175,12 +223,13 @@ size_t calc_margin(size_t height, size_t min_margin, size_t line_count) {
   return max((LINES_ - min(height, line_count)) / 2, min_margin);
 }
 
-size_t calc_page_ines(const vector<string>& display_lines, size_t height, size_t& bottom_line) {
-  auto page_lines = display_lines.size();
+size_t calc_page_ines(size_t display_lines, size_t height,
+                      size_t& bottom_line) {
+  auto page_lines = display_lines;
   bottom_line = 0;
-  if (display_lines.size() > height) {
-    page_lines = min(display_lines.size(), height);
-    bottom_line = display_lines.size() - page_lines;
+  if (display_lines > height) {
+    page_lines = min(display_lines, height);
+    bottom_line = display_lines - page_lines;
   }
   return page_lines;
 }
@@ -286,7 +335,7 @@ int main(int argc, char* const* argv) {
   auto margin = calc_margin(height, opt_min_margin, display_lines.size());
   height = LINES_ - margin * 2;  // adjust based on actual margin
   size_t bottom_line = 0;
-  auto page_lines = calc_page_ines(display_lines, height, bottom_line);
+  auto page_lines = calc_page_ines(display_lines.size(), height, bottom_line);
   int current_line = 0;
 
   draw(display_lines, display_cols, current_line, margin);
@@ -402,7 +451,7 @@ int main(int argc, char* const* argv) {
       display_cols = min(max_cols, min(cols, COLS_));
       margin = calc_margin(height, opt_min_margin, display_lines.size());
       height = LINES_ - margin * 2;  // adjust based on actual margin
-      page_lines = calc_page_ines(display_lines, height, bottom_line);
+      page_lines = calc_page_ines(display_lines.size(), height, bottom_line);
       if (current_line > bottom_line) {
         current_line = bottom_line;
       }
