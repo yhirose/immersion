@@ -14,14 +14,14 @@ Usage
 -----
 
 ```
-usage: immersion [-ls] [-h rows] [-w cols] [-m rows] [file]
+usage: immersion [-lw] [-r rows] [-c cols] [-m rows] [file]
 
   options:
     -l                  line space
-    -s                  word wrap
-    -h rows             window height
-    -w cols             window width
-    -m cols             minimun margin
+    -w                  word wrap
+    -r rows             window height
+    -c cols             window width
+    -m margin           minimun margin
     file                file path
 
   commands:
