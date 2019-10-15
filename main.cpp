@@ -1,6 +1,7 @@
 #include <locale.h>
 #include <ncurses.h>
 #include <unistd.h>
+#include <algorithm>
 #include <fstream>
 #include <iostream>
 #include <string>
