@@ -237,7 +237,7 @@ void parse_command_line(int argc, char* const* argv, size_t& cols, size_t& rows,
                         size_t& min_margin, bool& linespace, bool& word_warp) {
   int opt;
   opterr = 0;
-  while ((opt = getopt(argc, argv, "r:c:m:lw")) != -1) {
+  while ((opt = getopt(argc, argv, "r:c:m:sw")) != -1) {
     switch (opt) {
       case 'r':
         rows = stoi(optarg);
@@ -248,7 +248,7 @@ void parse_command_line(int argc, char* const* argv, size_t& cols, size_t& rows,
       case 'm':
         min_margin = stoi(optarg);
         break;
-      case 'l':
+      case 's':
         linespace = true;
         break;
       case 'w':
@@ -288,32 +288,31 @@ int main(int argc, char* const* argv) {
       opt_cols = 0;
       opt_rows = 0;
       lines = {
-          "usage: immersion [-ls] [-h rows] [-w cols] [-m rows] [file]",
+          "usage: immersion [-sw] [-r rows] [-c cols] [-m margin] [file]",
           "",
           "  options:",
-          "    -l                  line space",
-          "    -s                  word wrap",
-          "    -h rows             window height",
-          "    -w cols             window width",
+          "    -s                  line space",
+          "    -w                  word wrap",
+          "    -r rows             window height",
+          "    -c cols             window width",
           "    -m margin           minimun margin",
           "    file                file path",
           "",
           "  commands:",
-          "    q                   quit",
-          "    l                   toggle line space",
-          "    r                   toggle word wrap",
-          "    i                   widen window",
-          "    o                   narrow window",
-          "    I                   make window taller",
-          "    O                   make window shorter",
-          "    j                   line down",
-          "    k                   line up",
-          "    f or = or [space]   page down",
-          "    b or -              page up",
-          "    d or J              half page down",
-          "    u or K              half page up",
-          "    g                   go to top",
-          "    G                   go to bottom",
+          "    q              quit",
+          "    s              toggle line space",
+          "    i              widen window",
+          "    o              narrow window",
+          "    I              make window taller",
+          "    O              make window shorter",
+          "    j              line down",
+          "    k              line up",
+          "    f or [space]   page down",
+          "    b              page up",
+          "    d              half page down",
+          "    u              half page up",
+          "    g              go to top",
+          "    G              go to bottom",
       };
     }
   }
@@ -367,7 +366,7 @@ int main(int argc, char* const* argv) {
     auto layout = false;
 
     switch (key) {
-      case 'l':
+      case 's':
         linespace = !linespace;
         layout = true;
         break;
@@ -421,23 +420,19 @@ int main(int argc, char* const* argv) {
         break;
 
       case 'f':
-      case '=':
       case ' ':
         scroll_forward(page_lines);
         break;
 
       case 'b':
-      case '-':
         scroll_backword(page_lines);
         break;
 
       case 'd':
-      case 'J':
         scroll_forward(page_lines / 2);
         break;
 
       case 'u':
-      case 'K':
         scroll_backword(page_lines / 2);
         break;
 
