@@ -7,17 +7,17 @@ Distraction free pager on Terminal.
 cal 2020 | immersion
 figlet Hello World! | immersion
 pbpaste | immersion
-immersion -w 80 -w 40 main.cpp
+immersion -c 80 -r 40 main.cpp
 ```
 
 Usage
 -----
 
 ```
-usage: immersion [-lw] [-r rows] [-c cols] [-m rows] [file]
+usage: immersion [-sw] [-r rows] [-c cols] [-m margin] [file]
 
   options:
-    -l                  line space
+    -s                  line space
     -w                  word wrap
     -r rows             window height
     -c cols             window width
@@ -27,7 +27,6 @@ usage: immersion [-lw] [-r rows] [-c cols] [-m rows] [file]
   commands:
     q                   quit
     s                   toggle line space
-    r                   toggle word wrap
     i                   widen window
     o                   narrow window
     I                   make window taller
