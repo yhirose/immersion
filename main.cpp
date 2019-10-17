@@ -44,7 +44,7 @@ size_t columns(const string& line) {
 bool is_invalid_start_char(const string& ch) {
   return ch == u8"." || ch == u8"," || ch == u8";" || ch == u8"?" ||
          ch == u8"!" || ch == u8"。" || ch == u8"，" || ch == u8"？" ||
-         ch == u8"！";
+         ch == u8"！" || ch == u8"･";
 }
 
 auto fold_line(const string& line, size_t cols, bool word_warp) {
