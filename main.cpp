@@ -568,7 +568,7 @@ int main(int argc, char* const* argv) {
       }
     }
 
-    clear();
+    erase();
     draw(display_lines, display_cols, current_line, margin);
     refresh();
   }
