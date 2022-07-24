@@ -1,11 +1,14 @@
 #include <locale.h>
 #include <ncurses.h>
 #include <unistd.h>
+
 #include <algorithm>
 #include <fstream>
 #include <iostream>
+#include <sstream>
 #include <string>
 #include <vector>
+
 #include "utf8.h"
 
 using namespace std;
@@ -35,7 +38,32 @@ size_t columns(const string& line) {
   size_t pos = 0;
   while (pos < line.size()) {
     size_t col_len = 0;
-    pos += utf8CharLen(line.data(), line.size(), pos, &col_len);
+    auto char_len = utf8CharLen(line.data(), line.size(), pos, &col_len);
+
+    if (line[pos] == 0x1b) {
+      pos += char_len;
+
+      while (pos < line.size()) {
+        size_t col_len2 = 0;
+        auto char_len2 = utf8CharLen(line.data(), line.size(), pos, &col_len2);
+        auto ch2 = line.substr(pos, char_len2);
+
+        pos += char_len2;
+
+        if (ch2[0] == 'm') {
+          char_len = utf8CharLen(line.data(), line.size(), pos, &col_len);
+          pos += char_len;
+          break;
+        }
+      }
+      char_len = utf8CharLen(line.data(), line.size(), pos, &col_len);
+    } else if (pos + char_len < line.size() && line[pos + char_len] == 0x08) {
+      pos += char_len + 1;
+      char_len = utf8CharLen(line.data(), line.size(), pos, &col_len);
+    } else {
+      pos += char_len;
+    }
+
     cols += col_len;
   }
   return cols;
@@ -64,7 +92,24 @@ auto fold_line(const string& line, size_t cols, bool word_warp) {
     size_t col_len = 0;
     auto char_len = utf8CharLen(line.data(), line.size(), pos, &col_len);
 
-    if (pos + char_len < line.size() && line[pos + char_len] == 0x08) {
+    // Skip attribute
+    if (line[pos] == 0x1b) {
+      pos += char_len;
+
+      while (pos < line.size()) {
+        size_t col_len2 = 0;
+        auto char_len2 = utf8CharLen(line.data(), line.size(), pos, &col_len2);
+        auto ch2 = line.substr(pos, char_len2);
+
+        pos += char_len2;
+
+        if (ch2[0] == 'm') {
+          char_len = utf8CharLen(line.data(), line.size(), pos, &col_len);
+          break;
+        }
+      }
+      char_len = utf8CharLen(line.data(), line.size(), pos, &col_len);
+    } else if (pos + char_len < line.size() && line[pos + char_len] == 0x08) {
       pos += char_len + 1;
       char_len = utf8CharLen(line.data(), line.size(), pos, &col_len);
     }
@@ -127,16 +172,74 @@ auto fold_line(const string& line, size_t cols, bool word_warp) {
   return lines;
 }
 
+template <typename Out>
+void split(const std::string& s, char delim, Out result) {
+  std::istringstream iss(s);
+  std::string item;
+  while (std::getline(iss, item, delim)) {
+    *result++ = std::stoi(item);
+  }
+}
+
+std::vector<int> split(const std::string& s, char delim) {
+  std::vector<int> elems;
+  split(s, delim, std::back_inserter(elems));
+  return elems;
+}
+
 auto to_attributed_line(const string& line) {
   vector<pair<string, chtype>> result;
 
+  chtype type = A_NORMAL;
   size_t pos = 0;
   while (pos < line.size()) {
     size_t col_len = 0;
     auto char_len = utf8CharLen(line.data(), line.size(), pos, &col_len);
     auto ch = line.substr(pos, char_len);
 
-    if (pos + char_len < line.size() && line[pos + char_len] == 0x08) {
+    if (ch[0] == 0x1b) {
+      auto esc_start_pos = pos;
+      pos += char_len;
+
+      while (pos < line.size()) {
+        size_t col_len2 = 0;
+        auto char_len2 = utf8CharLen(line.data(), line.size(), pos, &col_len2);
+        auto ch2 = line.substr(pos, char_len2);
+
+        pos += char_len2;
+
+        if (ch2[0] == 'm') {
+          type = A_NORMAL;
+          esc_start_pos += 2;
+          auto esc_len = pos - esc_start_pos - 1;
+          if (esc_len > 0) {
+            auto esc_values = line.substr(esc_start_pos, esc_len);
+            auto vals = split(esc_values, ';');
+            for (auto val : vals) {
+              switch (val) {
+                case 1:
+                  type |= A_BOLD;
+                  break;
+                case 4:
+                  type |= A_UNDERLINE;
+                  break;
+                case 30:
+                case 31:
+                case 32:
+                case 33:
+                case 34:
+                case 35:
+                case 36:
+                case 37:
+                  type |= COLOR_PAIR(val);
+                  break;
+              }
+            }
+          }
+          break;
+        }
+      }
+    } else if (pos + char_len < line.size() && line[pos + char_len] == 0x08) {
       pos += char_len + 1;
 
       size_t col_len2 = 0;
@@ -152,7 +255,7 @@ auto to_attributed_line(const string& line) {
       }
     } else {
       pos += char_len;
-      result.emplace_back(ch, A_NORMAL);
+      result.emplace_back(ch, type);
     }
   }
 
@@ -323,6 +426,17 @@ int main(int argc, char* const* argv) {
   noecho();
   curs_set(0);
 
+  use_default_colors();
+  start_color();
+  init_pair(30, COLOR_BLACK, -1);
+  init_pair(31, COLOR_RED, -1);
+  init_pair(32, COLOR_GREEN, -1);
+  init_pair(33, COLOR_YELLOW, -1);
+  init_pair(34, COLOR_BLUE, -1);
+  init_pair(35, COLOR_MAGENTA, -1);
+  init_pair(36, COLOR_CYAN, -1);
+  init_pair(37, COLOR_WHITE, -1);
+
   auto linespace = opt_linespace;
   auto max_cols = max_colums(lines);
   auto cols =
@@ -412,11 +526,13 @@ int main(int argc, char* const* argv) {
         break;
 
       case 'g':
-        scroll_backword(current_line);
+        current_line = 0;
+        layout = true;
         break;
 
       case 'G':
-        scroll_forward(bottom_line - current_line);
+        current_line = bottom_line;
+        layout = true;
         break;
 
       case 'f':
